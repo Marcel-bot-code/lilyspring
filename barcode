@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Lilyspring Guest Check-in List</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+      background-color: #e9f2f0; /* Softer green/blue background */
+      color: #333;
+      margin: 0;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    h1 {
+      color: #2c3e50; /* Darker blue for title */
+      margin-bottom: 30px;
+      font-size: 2.5em;
+      text-align: center;
+      line-height: 1.2;
+    }
+    #guestlist-container {
+      width: 100%;
+      max-width: 700px;
+      background-color: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      padding: 25px;
+      margin-bottom: 20px; /* Space for the button */
+    }
+    #guestlist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #guestlist li {
+      display: flex;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 1.15em;
+      color: #555;
+      transition: background-color 0.2s ease;
+      cursor: pointer;
+    }
+    #guestlist li:last-child {
+      border-bottom: none;
+    }
+    #guestlist li:hover {
+        background-color: #f9f9f9;
+    }
+    #guestlist input[type="checkbox"] {
+      margin-right: 15px;
+      min-width: 24px;
+      min-height: 24px;
+      cursor: pointer;
+      accent-color: #4CAF50;
+    }
+    #guestlist li.checked-in {
+      text-decoration: line-through;
+      color: #999;
+      background-color: #e6ffe6;
+    }
+    #guestlist li label {
+        flex-grow: 1;
+        cursor: pointer;
+    }
+    .guest-id {
+        font-size: 0.85em;
+        color: #888;
+        margin-left: 10px;
+        min-width: 70px;
+        text-align: right;
+    }
+    .controls {
+        text-align: center;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 700px;
+    }
+    #saveButton {
+      background-color: #4CAF50; /* Green color */
+      color: white;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    #saveButton:hover {
+      background-color: #45a049;
+      transform: translateY(-2px);
+    }
+    #saveButton:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    #saveConfirmation {
+        margin-top: 15px;
+        font-size: 1em;
+        color: #28a745;
+        font-weight: bold;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.5s ease-in-out;
+    }
+    #saveConfirmation.show {
+        opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <h1>Lilyspring Guest Check-in List</h1>
+
+  <div id="guestlist-container">
+    <ul id="guestlist">
+      <!-- Guest list items will be populated by JavaScript -->
+    </ul>
+  </div>
+
+  <div class="controls">
+    <button id="saveButton">Manually Save State</button>
+    <p id="saveConfirmation">Saved to your device!</p>
+  </div>
+
+  <script>
+    const guestlistElement = document.getElementById('guestlist');
+    const saveButton = document.getElementById('saveButton');
+    const saveConfirmation = document.getElementById('saveConfirmation');
+
+    // --- Guest Data (copied from your QR code generator script) ---
+    const rawGuestEntries = [
+        "Mr&Mrs Agu", "Mr&Mrs Bright", "Mr&Mrs CHIMA", "Mr&Mrs Obilor", "Mr&Mrs Ibeawuchi",
+        "Mr&Mrs Justice", "Mr&Mrs Gogo", "Mr&Mrs Emmanuel", "Mr&Mrs Hope", "Mr&Mrs Ndubuisi",
+        "Mr&Mrs Obinichi", "Mr&Mrs Lawrence", "Mr&Mrs MBATA", "Mr&Mrs Aleruchi", "Mr&Mrs CHINONYE",
+        "Mr&Mrs Aimikhe", "Mr&Mrs Agboje", "Mr&Mrs Benedict", "Mr&Mrs Azike", "Mr&Mrs Biralor",
+        "Mr&Mrs Kalada", "Mr&Mrs Ayara", "Mr&Mrs Felix-Michael", "Mr&Mrs Onyedikachi",
+        "Mr&Mrs Onuh", "Mr&Mrs Sunny", "Mr&Mrs Madumere", "Mr&Mrs Mimi",
+
+        // PTF Members
+        "Mrs. Okere", "Mrs. Ehighalua", "Mrs. Ogochukwu", "Mr. Bright",
+        "Mr&Mrs Felix Abigo", "Mr&Mrs Oguji",
+
+        // Special Guests
+        "Lady Wokocha", "Mrs. Roseline", "Mr. Jacob", "Gospel Ettah", "Mr&Mrs Okoro",
+        "Mrs Waribo", "Mrs Ozigbo", "Mrs Amasingha", "Mrs Obodo", "Mrs Aduwari", "Mrs Lizy",
+
+        // Specific individuals (assuming these are separate from any Mr&Mrs entries above)
+        "Solomon Onuh",
+        "Christabel Mimi",
+        "Micah Madumere",
+        "Sunny Ochiba"
+    ];
+
+    const refinedGuests = [];
+    let idCounter = 1;
+
+    rawGuestEntries.forEach(entry => {
+        if (entry.startsWith("Mr&Mrs ")) {
+            const baseName = entry.substring("Mr&Mrs ".length).trim();
+            refinedGuests.push({
+                name: `Mr. ${baseName}`,
+                uniqueId: `LS10-${String(idCounter++).padStart(3, '0')}`
+            });
+            refinedGuests.push({
+                name: `Mrs. ${baseName}`,
+                uniqueId: `LS10-${String(idCounter++).padStart(3, '0')}`
+            });
+        } else {
+            refinedGuests.push({
+                name: entry,
+                uniqueId: `LS10-${String(idCounter++).padStart(3, '0')}`
+            });
+        }
+    });
+    // --- End Guest Data ---
+
+
+    // Function to render the guest list from the refinedGuests array
+    function renderGuestList() {
+      guestlistElement.innerHTML = ''; // Clear any existing items before rendering
+      const savedStates = JSON.parse(localStorage.getItem('lilyspringGuestCheckinStates')) || {};
+
+      refinedGuests.forEach((guest) => {
+        const li = document.createElement('li');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `guest-${guest.uniqueId}`;
+        checkbox.checked = savedStates[guest.uniqueId] || false; // Load initial state
+
+        const label = document.createElement('label');
+        label.htmlFor = `guest-${guest.uniqueId}`;
+        label.textContent = guest.name;
+
+        const guestIdSpan = document.createElement('span');
+        guestIdSpan.className = 'guest-id';
+        guestIdSpan.textContent = guest.uniqueId;
+
+        li.appendChild(checkbox);
+        li.appendChild(label);
+        li.appendChild(guestIdSpan);
+
+        if (checkbox.checked) {
+          li.classList.add('checked-in');
+        }
+
+        li.addEventListener('click', (event) => {
+          if (event.target !== checkbox && event.target !== guestIdSpan) {
+            checkbox.checked = !checkbox.checked;
+          }
+          // The state is saved automatically here when a checkbox is toggled
+          toggleGuestCheckin(li, checkbox.checked, guest.uniqueId);
+        });
+
+        checkbox.addEventListener('change', () => {
+          // The state is saved automatically here when a checkbox is toggled
+          toggleGuestCheckin(li, checkbox.checked, guest.uniqueId);
+        });
+
+        guestlistElement.appendChild(li);
+      });
+    }
+
+    // Function to apply/remove 'checked-in' class and save state
+    function toggleGuestCheckin(liElement, isChecked, uniqueId) {
+      if (isChecked) {
+        liElement.classList.add('checked-in');
+      } else {
+        liElement.classList.remove('checked-in');
+      }
+      saveCheckinState(uniqueId, isChecked, false); // Pass 'false' to suppress instant confirmation
+    }
+
+    // Function to actually save the check-in status to the browser's localStorage
+    // 'showConfirmation' parameter is new, default to true for manual save
+    function saveCheckinState(uniqueId, isChecked, showConfirmation = true) {
+      const savedStates = JSON.parse(localStorage.getItem('lilyspringGuestCheckinStates')) || {};
+
+      // If a specific uniqueId is provided, update that one.
+      // If no uniqueId (e.g., from manual "Save" button), it means we're just re-saving the existing states.
+      if (uniqueId) {
+        savedStates[uniqueId] = isChecked;
+      }
+      
+      localStorage.setItem('lilyspringGuestCheckinStates', JSON.stringify(savedStates));
+
+      if (showConfirmation) {
+          showSaveConfirmation();
+      }
+    }
+
+    // Function to display "Saved!" message temporarily
+    let confirmationTimeout;
+    function showSaveConfirmation() {
+        clearTimeout(confirmationTimeout); // Clear any existing timeout
+        saveConfirmation.classList.add('show');
+        confirmationTimeout = setTimeout(() => {
+            saveConfirmation.classList.remove('show');
+        }, 3000); // Hide after 3 seconds
+    }
+
+    // Event listener for the manual Save button
+    saveButton.addEventListener('click', () => {
+        // When the button is clicked, we force a save of the current state
+        // (even though toggling checkboxes already saves) and show confirmation.
+        // We iterate through all current checkboxes to ensure the latest state is captured,
+        // although it should already be in localStorage due to automatic saving.
+        const currentStates = {};
+        refinedGuests.forEach(guest => {
+            const checkbox = document.getElementById(`guest-${guest.uniqueId}`);
+            if (checkbox) {
+                currentStates[guest.uniqueId] = checkbox.checked;
+            }
+        });
+        localStorage.setItem('lilyspringGuestCheckinStates', JSON.stringify(currentStates));
+        showSaveConfirmation();
+    });
+
+    // Initialize the guest list when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', renderGuestList);
+  </script>
+</body>
+</html>
